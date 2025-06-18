@@ -1,0 +1,66 @@
+name: Deploy Lambda Function
+
+on:
+  push:
+    branches:
+      - develop # mainブランチへのプッシュをトリガーとする
+
+env:
+  AWS_REGION: us-east-1 # 東京リージョン
+  LAMBDA_FUNCTION_NAME: next-deploy-github # デプロイ先のLambda関数名
+  S3_BUCKET_NAME: test-bucket-482903906450-lambda2 # デプロイパッケージを一時的に保存するS3バケット名
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # OIDC 認証のために必要
+      contents: read  # リポジトリのコードを読み取るために必要
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::your-account-id:role/GitHubActionsLambdaDeployRole # ここに作成したIAMロールのARNを指定
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14' # Lambda関数のランタイムに合わせて変更
+
+      - name: Install dependencies (if any)
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt -t package/ # 依存関係を 'package/' ディレクトリにインストール
+          fi
+
+      - name: Create deployment package
+        run: |
+          # 依存関係がインストールされた 'package/' ディレクトリがあれば、その内容をZIPに含める
+          # その後、lambda_function.py をZIPのルートに含める
+          if [ -d package ]; then
+            cd package
+            zip -r9 ../deployment_package.zip .
+            cd ..
+          fi
+          zip -g deployment_package.zip lambda_function.py # Lambdaハンドラファイルを追加
+        # 他のファイルも追加する場合は適宜 zip コマンドを変更
+        # 例: zip -g deployment_package.zip another_file.py
+
+      - name: Upload deployment package to S3
+        run: |
+          aws s3 cp deployment_package.zip s3://${{ env.S3_BUCKET_NAME }}/lambda/${{ env.LAMBDA_FUNCTION_NAME }}/deployment_package.zip
+
+      - name: Update Lambda Function Code
+        run: |
+          aws lambda update-function-code \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
+            --s3-bucket ${{ env.S3_BUCKET_NAME }} \
+            --s3-key lambda/${{ env.LAMBDA_FUNCTION_NAME }}/deployment_package.zip \
+            --publish # 新しいバージョンを公開する場合は --publish を追加
+            # --zip-file fileb://deployment_package.zip # S3経由でなく直接デプロイする場合はこちらを使う
