@@ -3,7 +3,7 @@ name: Deploy Lambda Function
 on:
   push:
     branches:
-      - develop # mainブランチへのプッシュをトリガーとする
+      - main # mainブランチへのプッシュをトリガーとする
 
 env:
   AWS_REGION: us-east-1 # 東京リージョン
@@ -24,13 +24,13 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::your-account-id:role/GitHubActionsLambdaDeployRole # ここに作成したIAMロールのARNを指定
+          role-to-assume: arn:aws:iam::482903906450:role/Role-lambda-github-nextjs # ここに作成したIAMロールのARNを指定
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.14' # Lambda関数のランタイムに合わせて変更
+          python-version: '3.13' # Lambda関数のランタイムに合わせて変更
 
       - name: Install dependencies (if any)
         run: |
