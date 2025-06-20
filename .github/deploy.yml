@@ -3,7 +3,7 @@ name: Deploy Lambda Function
 on:
   push:
     branches:
-      - main # mainブランチへのプッシュをトリガーとする
+      - develop # developブランチへのプッシュをトリガーとする
 
 env:
   AWS_REGION: us-east-1 # 東京リージョン
